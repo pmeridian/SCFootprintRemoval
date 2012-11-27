@@ -13,7 +13,7 @@
 //
 // Original Author:  Marco Peruzzi,32 4-C16,+41227676829,
 //         Created:  Sat Sep 29 17:58:21 CEST 2012
-// $Id$
+// $Id: SuperClusterFootprintRemoval.h,v 1.1 2012/09/30 16:58:18 peruzzi Exp $
 //
 //
 
@@ -36,6 +36,9 @@
 #include "Geometry/CaloGeometry/interface/CaloSubdetectorGeometry.h"
 #include "Geometry/CaloTopology/interface/CaloTopology.h"
 #include "Geometry/CaloEventSetup/interface/CaloTopologyRecord.h"
+#include "DataFormats/GeometryVector/interface/GlobalPoint.h"
+#include "MagneticField/Engine/interface/MagneticField.h"
+#include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
 #include "DataFormats/EcalRecHit/interface/EcalRecHitCollections.h"
 #include "DataFormats/DetId/interface/DetId.h"
 #include "DataFormats/EcalDetId/interface/EBDetId.h"
@@ -53,6 +56,8 @@
 #include "TGeoPara.h"
 #include "TVector3.h"
 #include "TMath.h"
+#include "TRotation.h"
+
 
 #ifndef __SUPERCLUSTERFOOTPRINTREMOVAL__HH__
 #define __SUPERCLUSTERFOOTPRINTREMOVAL__HH__
@@ -88,11 +93,11 @@ public:
   SuperClusterFootprintRemoval(const edm::Event&, const edm::EventSetup&);
   ~SuperClusterFootprintRemoval();
 
-  // get the vector of the indices of those ***photon*** PF candidates (in the pfCandidates collection) that are inside the SC footprint or are duplicata of the RECO object with SuperCluster sc
+  // get the vector of the indices of those PF candidates (neutrals,charged and photons, in the pfCandidates collection) that are inside the SC footprint or are duplicata of the RECO object with SuperCluster sc
   std::vector<int> GetPFCandInFootprint(reco::SuperClusterRef sc);
 
-  // get the angular distance between the photon pf candidate pfCandidates[pfindex] and the SuperCluster sc
-  angular_distances_struct GetPFCandDistanceFromSC(reco::SuperClusterRef sc, int pfindex);
+  // get the angular distance between the pf candidate pfCandidates[pfindex] and the SuperCluster sc
+  angular_distances_struct GetPFCandHitDistanceFromSC(reco::SuperClusterRef sc, int pfindex);
 
 private:
 
@@ -103,11 +108,14 @@ private:
   CaloSubdetectorGeometry *barrelGeometry;
   CaloSubdetectorGeometry *endcapGeometry;
   TGeoPara eegeom;
+  MagneticField *magField;
 
   edm::Handle<reco::GsfElectronCollection> electronHandle;
   edm::Handle<reco::PFCandidateCollection> pfCandidates;  
 
   float global_linkbyrechit_enlargement;
+
+  int FindPFCandType(int id);
   
 };
 

@@ -13,7 +13,7 @@
 //
 // Original Author:  Marco Peruzzi,32 4-C16,+41227676829,
 //         Created:  Sat Sep 29 17:58:21 CEST 2012
-// $Id$
+// $Id: SuperClusterFootprintRemoval.cc,v 1.1 2012/09/30 16:58:18 peruzzi Exp $
 //
 //
 
@@ -37,6 +37,10 @@ SuperClusterFootprintRemoval::SuperClusterFootprintRemoval(const edm::Event& iEv
   iSetup.get<CaloGeometryRecord>().get(geometry);
   barrelGeometry = (CaloSubdetectorGeometry*)(geometry->getSubdetectorGeometry(DetId::Ecal, EcalBarrel));
   endcapGeometry = (CaloSubdetectorGeometry*)(geometry->getSubdetectorGeometry(DetId::Ecal, EcalEndcap));
+
+  edm::ESHandle<MagneticField> magneticField;
+  iSetup.get<IdealMagneticFieldRecord>().get(magneticField);
+  magField = (MagneticField*)(magneticField.product());
 
   //Electron collection
   iEvent.getByLabel("gsfElectrons", electronHandle);
@@ -65,7 +69,15 @@ SuperClusterFootprintRemoval::~SuperClusterFootprintRemoval()
 TVector3 SuperClusterFootprintRemoval::PropagatePFCandToEcal(int pfcandindex, float position, bool isbarrel){
   // WARNING: this propagates until EE+ or EE- at the given TMath::Abs(position.z()) for isbarrel=0, depending on where the candidate is pointing.
 
+
+
   int i = pfcandindex;
+  int type = FindPFCandType((*pfCandidates)[i].pdgId());
+
+  if (type>2) {
+    std::cout << "Asking propagation for lepton, not implemented" << std::endl;
+    return TVector3(0,0,1e10);
+  }
 
   TVector3 pfvertex((*pfCandidates)[i].vx(),(*pfCandidates)[i].vy(),(*pfCandidates)[i].vz());
   TVector3 pfmomentum((*pfCandidates)[i].px(),(*pfCandidates)[i].py(),(*pfCandidates)[i].pz());
@@ -85,6 +97,22 @@ TVector3 SuperClusterFootprintRemoval::PropagatePFCandToEcal(int pfcandindex, fl
     double dist = eegeom.DistFromInside(p,d);
     ecalpfhit = pfvertex + dist*pfmomentum;
   }
+
+
+  if (type==1){ // APPROXIMATE helix propagation
+
+    float field = magField->inTesla(GlobalPoint(0.,0.,0.)).z();
+    float charge = (*pfCandidates)[i].charge();
+    float curvature = ((*pfCandidates)[i].pt())/(0.3*field*charge)*100; // curvature radius in cm
+    float final_radius = ecalpfhit.Perp();
+    float addphi = -TMath::ASin(final_radius/curvature/2);
+
+    TRotation r;
+    r.RotateZ(addphi);
+    ecalpfhit *= r;
+
+  }
+
 
   return ecalpfhit;
 
@@ -209,7 +237,8 @@ std::vector<int> SuperClusterFootprintRemoval::GetPFCandInFootprint(reco::SuperC
 
   for (unsigned int i=0; i<pfCandidates->size(); i++){
 
-    if ((*pfCandidates)[i].pdgId()!=22) continue;
+    int type = FindPFCandType((*pfCandidates)[i].pdgId());
+    if (type>2) continue;
 
     bool inside=false;
 
@@ -257,12 +286,13 @@ std::vector<int> SuperClusterFootprintRemoval::GetPFCandInFootprint(reco::SuperC
 }
 
 
-angular_distances_struct SuperClusterFootprintRemoval::GetPFCandDistanceFromSC(reco::SuperClusterRef sc, int pfindex){
+angular_distances_struct SuperClusterFootprintRemoval::GetPFCandHitDistanceFromSC(reco::SuperClusterRef sc, int pfindex){
 
   int i = pfindex;
+  int type = FindPFCandType((*pfCandidates)[i].pdgId());
 
-  if ((*pfCandidates)[i].pdgId()!=22) {
-    std::cout << "propagation not implemented for non photon objects!!!" << std::endl;
+  if (type>2) {
+    std::cout << "propagation not implemented for lepton objects!!!" << std::endl;
     angular_distances_struct out;
     out.dR=999; out.dEta=999; out.dPhi=999;
     return out;
@@ -285,6 +315,19 @@ angular_distances_struct SuperClusterFootprintRemoval::GetPFCandDistanceFromSC(r
 
   return out;
 
+}
+
+int SuperClusterFootprintRemoval::FindPFCandType(int id){
+
+  int type = -1;
+
+  if (id==111 || id==130 || id==310 || id==2112) type=0; //neutral hadrons
+  if (fabs(id)==211 || fabs(id)==321 || id==999211 || fabs(id)==2212) type=1; //charged hadrons
+  if (id==22) type=2; //photons
+  if (fabs(id)==11) type=3; //electrons
+  if (fabs(id)==13) type=4; //muons
+
+  return type;
 }
 
 #endif
