@@ -13,7 +13,7 @@
 //
 // Original Author:  Marco Peruzzi,32 4-C16,+41227676829,
 //         Created:  Sat Sep 29 17:58:21 CEST 2012
-// $Id: SuperClusterFootprintRemoval.cc,v 1.1 2012/09/30 16:58:18 peruzzi Exp $
+// $Id: SuperClusterFootprintRemoval.cc,v 1.2 2012/11/27 13:00:46 peruzzi Exp $
 //
 //
 
@@ -201,26 +201,26 @@ std::vector<int> SuperClusterFootprintRemoval::GetMatchedPFCandidates(reco::Supe
   }
   
 
-  bool foundEgSC = false;
-  reco::GsfElectronCollection::const_iterator elIterSl;
-  for (reco::GsfElectronCollection::const_iterator elIter = electronHandle->begin(); elIter != electronHandle->end(); ++elIter){
-
-    if (sc==elIter->superCluster()) {
-      elIterSl = elIter;
-      foundEgSC = true;
-    }
-
-    if (foundEgSC){
-      double MVACut_ = -0.1; //42X
-      //double MVACut_ = -1.; //44X
-      for (unsigned int i=0; i<pfCandidates->size(); i++) {
-	if ((*pfCandidates)[i].particleId()==reco::PFCandidate::e && (*pfCandidates)[i].gsfTrackRef().isNull()==false && (*pfCandidates)[i].mva_e_pi()>MVACut_ && (*pfCandidates)[i].gsfTrackRef()==elIterSl->gsfTrack()){
-	  out.push_back(i);
-	}
-      }
-    }
-     
-  }
+//  bool foundEgSC = false;
+//  reco::GsfElectronCollection::const_iterator elIterSl;
+//  for (reco::GsfElectronCollection::const_iterator elIter = electronHandle->begin(); elIter != electronHandle->end(); ++elIter){
+//
+//    if (sc==elIter->superCluster()) {
+//      elIterSl = elIter;
+//      foundEgSC = true;
+//    }
+//
+//    if (foundEgSC){
+//      double MVACut_ = -0.1; //42X
+//      //double MVACut_ = -1.; //44X
+//      for (unsigned int i=0; i<pfCandidates->size(); i++) {
+//	if ((*pfCandidates)[i].particleId()==reco::PFCandidate::e && (*pfCandidates)[i].gsfTrackRef().isNull()==false && (*pfCandidates)[i].mva_e_pi()>MVACut_ && (*pfCandidates)[i].gsfTrackRef()==elIterSl->gsfTrack()){
+//	  out.push_back(i);
+//	}
+//      }
+//    }
+//     
+//  }
 
   return out;
 
