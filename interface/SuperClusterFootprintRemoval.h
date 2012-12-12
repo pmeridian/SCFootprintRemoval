@@ -8,12 +8,12 @@
  Description: Implements the algo for removal of PF clusters from the SC footprint
 
  Implementation:
-     Runs on AOD in 4_2. Electron MVA cut for 4_2.
+     Runs on AOD.
 */
 //
 // Original Author:  Marco Peruzzi,32 4-C16,+41227676829,
 //         Created:  Sat Sep 29 17:58:21 CEST 2012
-// $Id: SuperClusterFootprintRemoval.h,v 1.2 2012/11/27 13:00:45 peruzzi Exp $
+// $Id: SuperClusterFootprintRemoval.h,v 1.3 2012/12/12 09:39:39 peruzzi Exp $
 //
 //
 
@@ -103,7 +103,7 @@ public:
   ~SuperClusterFootprintRemoval();
 
   // Calculate the PF isolation around the object consisting of the SuperCluster sc. Component can be "neutral","charged" or "photon".
-  // The vertexforchargediso parameter should be passed for charged isolation ONLY, and tells with respect to which vertex (within the vertices collection) we should cut on dxy (0.1 cm) and dz (0.2 cm) of the track associated to charged PF candidate. Ideally, this should be the vertex from which the object consisting of the SuperCluster sc comes from.
+  // The vertexforchargediso parameter should be passed for charged isolation ONLY, and tells with respect to which vertex (within the vertices collection) we should cut on dxy (0.1 cm) and dz (0.2 cm) of the track associated to charged PF candidate. Ideally, this should be the vertex from which the object consisting of the SuperCluster sc comes from. To turn off this selection, allowing charged PF candidates from all vertices to enter the isolation sum, pass vertexforchargediso=-1.
   float PFIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso=-999);
 
   // Get the vector of the indices of those PF candidates (neutrals,charged and photons, in the pfCandidates collection) that are inside the SC footprint or are duplicata of the RECO object with SuperCluster sc
