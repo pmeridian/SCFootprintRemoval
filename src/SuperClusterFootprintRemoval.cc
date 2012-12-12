@@ -8,12 +8,12 @@
  Description: Implements the algo for removal of PF clusters from the SC footprint
 
  Implementation:
-     Runs on AOD in 4_2. Electron MVA cut for 4_2.
+     Runs on AOD.
 */
 //
 // Original Author:  Marco Peruzzi,32 4-C16,+41227676829,
 //         Created:  Sat Sep 29 17:58:21 CEST 2012
-// $Id: SuperClusterFootprintRemoval.cc,v 1.2 2012/11/27 13:00:46 peruzzi Exp $
+// $Id: SuperClusterFootprintRemoval.cc,v 1.3 2012/11/27 14:42:30 peruzzi Exp $
 //
 //
 
@@ -26,12 +26,14 @@
 //
 // constructors and destructor
 //
-SuperClusterFootprintRemoval::SuperClusterFootprintRemoval(const edm::Event& iEvent, const edm::EventSetup& iSetup)
+SuperClusterFootprintRemoval::SuperClusterFootprintRemoval(const edm::Event& iEvent, const edm::ParameterSet& iConfig, const edm::EventSetup& iSetup)
 {
    //now do what ever initialization is needed
 
   eegeom = TGeoPara(1,1,1,0,0,0);
-  global_linkbyrechit_enlargement = 0.25;
+
+  global_isolation_cone_size = iConfig.getUntrackedParameter<double>("isolation_cone_size_forSCremoval",0.4);
+  global_linkbyrechit_enlargement = iConfig.getUntrackedParameter<double>("rechit_link_enlargement_forSCremoval",0.25);
 
   edm::ESHandle<CaloGeometry> geometry ;
   iSetup.get<CaloGeometryRecord>().get(geometry);
@@ -42,12 +44,13 @@ SuperClusterFootprintRemoval::SuperClusterFootprintRemoval(const edm::Event& iEv
   iSetup.get<IdealMagneticFieldRecord>().get(magneticField);
   magField = (MagneticField*)(magneticField.product());
 
-  //Electron collection
-  iEvent.getByLabel("gsfElectrons", electronHandle);
-
   //PFcandidates
-  iEvent.getByLabel("particleFlow", pfCandidates);
+  edm::InputTag pfCandidateTag = iConfig.getUntrackedParameter<edm::InputTag>("tag_pfCandidates_forSCremoval",edm::InputTag("particleFlow"));
+  iEvent.getByLabel(pfCandidateTag, pfCandidates);
 
+  //Vertices
+  edm::InputTag fVertexTag = iConfig.getUntrackedParameter<edm::InputTag>("tag_Vertices_forSCremoval",edm::InputTag("offlinePrimaryVertices"));
+  iEvent.getByLabel(fVertexTag, vertexHandle);
 
 }
 
@@ -127,14 +130,14 @@ sc_xtal_information SuperClusterFootprintRemoval::GetSCXtalInfo(reco::SuperClust
   std::vector<DetId> cristalli;         
   for (reco::CaloCluster_iterator bc=sc->clustersBegin(); bc!=sc->clustersEnd(); ++bc){
     const std::vector< std::pair<DetId, float> > & seedrechits = (*bc)->hitsAndFractions();
-    for (uint i=0; i<seedrechits.size(); i++) cristalli.push_back(seedrechits[i].first);
+    for (unsigned int i=0; i<seedrechits.size(); i++) cristalli.push_back(seedrechits[i].first);
     sort(cristalli.begin(),cristalli.end());
     std::vector<DetId>::iterator it;
     it = unique(cristalli.begin(),cristalli.end());
     cristalli.resize(it-cristalli.begin());
   }
           
-  uint i=0;
+  unsigned int i=0;
   for (i=0; i<cristalli.size(); i++){
 
     if (cristalli.at(i).subdetId()!=EcalBarrel && cristalli.at(i).subdetId()!=EcalEndcap) continue;
@@ -199,28 +202,6 @@ std::vector<int> SuperClusterFootprintRemoval::GetMatchedPFCandidates(reco::Supe
       }
     }
   }
-  
-
-//  bool foundEgSC = false;
-//  reco::GsfElectronCollection::const_iterator elIterSl;
-//  for (reco::GsfElectronCollection::const_iterator elIter = electronHandle->begin(); elIter != electronHandle->end(); ++elIter){
-//
-//    if (sc==elIter->superCluster()) {
-//      elIterSl = elIter;
-//      foundEgSC = true;
-//    }
-//
-//    if (foundEgSC){
-//      double MVACut_ = -0.1; //42X
-//      //double MVACut_ = -1.; //44X
-//      for (unsigned int i=0; i<pfCandidates->size(); i++) {
-//	if ((*pfCandidates)[i].particleId()==reco::PFCandidate::e && (*pfCandidates)[i].gsfTrackRef().isNull()==false && (*pfCandidates)[i].mva_e_pi()>MVACut_ && (*pfCandidates)[i].gsfTrackRef()==elIterSl->gsfTrack()){
-//	  out.push_back(i);
-//	}
-//      }
-//    }
-//     
-//  }
 
   return out;
 
@@ -328,6 +309,55 @@ int SuperClusterFootprintRemoval::FindPFCandType(int id){
   if (fabs(id)==13) type=4; //muons
 
   return type;
+}
+
+float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso){
+
+  if (component!="charged" && vertexforchargediso!=-999) {std::cout << "WARNING: Why are you specifying a vertex for neutral or photon isolation? This will be ignored." << std::endl; vertexforchargediso=0;}
+  if (component=="charged" && vertexforchargediso==-999) {std::cout << "WARNING: You did not specify a vertex for the charged component of PF isolation. Using vertex 0 by default." << std::endl; vertexforchargediso=0;}
+
+  if (vertexforchargediso > (int)(vertexHandle->size())-1 || vertexforchargediso<0) {std::cout << "ERROR: Invalid vertexforchargediso specified. Returning 999." << std::endl; return 999;}
+
+  float result = 0;
+  std::vector<int> removed = GetPFCandInFootprint(sc);
+
+  int thistype=-999;
+  if (component=="neutral") thistype=0;
+  if (component=="charged") thistype=1;
+  if (component=="photon")  thistype=2;
+
+  if (thistype==-999) {std::cout << "ERROR: Incorrect PF isolation component selected. Returning 999." << std::endl; return 999;}
+
+  for (unsigned int i=0; i<pfCandidates->size(); i++){
+
+    int type = FindPFCandType((*pfCandidates)[i].pdgId());
+    if (type!=thistype) continue;
+
+    bool toremove = false;
+    for (unsigned int j=0; j<removed.size(); j++) if ((int)i==removed.at(j)) toremove = true;
+    if (toremove) continue;
+
+    angular_distances_struct distance = GetPFCandHitDistanceFromSC(sc,i);
+    if (distance.dR>global_isolation_cone_size) continue;
+
+    if (type==1){
+      TVector3 pfvertex((*pfCandidates)[i].vx(),(*pfCandidates)[i].vy(),(*pfCandidates)[i].vz());
+      TVector3 vtxmom((*pfCandidates)[i].trackRef()->px(),(*pfCandidates)[i].trackRef()->py(),(*pfCandidates)[i].trackRef()->pz());
+      TVector3 phovtx((*vertexHandle)[vertexforchargediso].x(),(*vertexHandle)[vertexforchargediso].y(),(*vertexHandle)[vertexforchargediso].z());
+      float dxy = ( -(pfvertex.x()-phovtx.x())*vtxmom.y() +(pfvertex.y()-phovtx.y())*vtxmom.x() ) / vtxmom.Perp();
+      float dz = (pfvertex.z()-phovtx.z()) - ( (pfvertex.x()-phovtx.x())*vtxmom.x() + (pfvertex.y()-phovtx.y())*vtxmom.y() ) / vtxmom.Perp() * vtxmom.z() / vtxmom.Perp();
+      dxy=fabs(dxy);
+      dz=fabs(dz);
+      if (dz>0.2) continue;
+      if (dxy>0.1) continue;
+    }
+
+    result+=(*pfCandidates)[i].pt();
+
+  }
+
+  return result;
+
 }
 
 #endif

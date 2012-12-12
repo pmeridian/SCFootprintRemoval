@@ -12,6 +12,7 @@
 <use name="DataFormats/CaloRecHit"/>
 <use name="Geometry/CaloGeometry"/>
 <use name="DataFormats/EcalRecHit"/>
+<use name="DataFormats/VertexReco"/>
 <use name="MagneticField/Records"/>
 <use name="MagneticField/Engine"/>
 <use name="root"/>
