@@ -13,7 +13,7 @@
 //
 // Original Author:  Marco Peruzzi,32 4-C16,+41227676829,
 //         Created:  Sat Sep 29 17:58:21 CEST 2012
-// $Id: SuperClusterFootprintRemoval.cc,v 1.4 2012/12/12 09:39:39 peruzzi Exp $
+// $Id: SuperClusterFootprintRemoval.cc,v 1.5 2012/12/12 15:00:31 peruzzi Exp $
 //
 //
 
@@ -313,10 +313,15 @@ int SuperClusterFootprintRemoval::FindPFCandType(int id){
 
 float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso){
 
-  if (component!="charged" && vertexforchargediso!=-999) {std::cout << "WARNING: Why are you specifying a vertex for neutral or photon isolation? This will be ignored." << std::endl; vertexforchargediso=-1;}
-  if (component=="charged" && vertexforchargediso==-999) {std::cout << "WARNING: You did not specify a vertex for the charged component of PF isolation. Deactivating vertex cuts (vertexforchargediso=-1) by default." << std::endl; vertexforchargediso=-1;}
+  if (component!="charged") {
+    if (vertexforchargediso!=-999) std::cout << "WARNING: Why are you specifying a vertex for neutral or photon isolation? This will be ignored." << std::endl;
+    vertexforchargediso=-1;
+  }
 
-  if (vertexforchargediso > (int)(vertexHandle->size())-1 || vertexforchargediso<-1) {std::cout << "ERROR: Invalid vertexforchargediso specified. Returning 999." << std::endl; return 999;}
+  if (component=="charged") {
+      if (vertexforchargediso==-999) {std::cout << "WARNING: You did not specify a vertex for the charged component of PF isolation. Deactivating vertex cuts (vertexforchargediso=-1) by default." << std::endl; vertexforchargediso=-1;}
+      if (vertexforchargediso > (int)(vertexHandle->size())-1 || vertexforchargediso<-1) {std::cout << "ERROR: Invalid vertexforchargediso specified. Returning 999." << std::endl; return 999;}
+    }
 
   float result = 0;
   std::vector<int> removed = GetPFCandInFootprint(sc);
