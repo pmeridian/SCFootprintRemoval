@@ -13,7 +13,7 @@
 //
 // Original Author:  Marco Peruzzi,32 4-C16,+41227676829,
 //         Created:  Sat Sep 29 17:58:21 CEST 2012
-// $Id: SuperClusterFootprintRemoval.cc,v 1.5 2012/12/12 15:00:31 peruzzi Exp $
+// $Id: SuperClusterFootprintRemoval.cc,v 1.6 2012/12/15 18:10:07 peruzzi Exp $
 //
 //
 
@@ -194,7 +194,7 @@ std::vector<int> SuperClusterFootprintRemoval::GetMatchedPFCandidates(reco::Supe
   std::vector<int> out;
 
   for (unsigned int i=0; i<pfCandidates->size(); i++) {
-    if ((*pfCandidates)[i].pdgId()!=22) {
+    if ((*pfCandidates)[i].pdgId()==22) {
       if ((*pfCandidates)[i].mva_nothing_gamma()>0){
 	if( (*pfCandidates)[i].superClusterRef()==sc) {
 	  out.push_back(i);
