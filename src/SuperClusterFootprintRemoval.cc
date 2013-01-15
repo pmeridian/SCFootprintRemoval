@@ -13,7 +13,7 @@
 //
 // Original Author:  Marco Peruzzi,32 4-C16,+41227676829,
 //         Created:  Sat Sep 29 17:58:21 CEST 2012
-// $Id: SuperClusterFootprintRemoval.cc,v 1.6 2012/12/15 18:10:07 peruzzi Exp $
+// $Id: SuperClusterFootprintRemoval.cc,v 1.7 2013/01/10 17:46:05 peruzzi Exp $
 //
 //
 
@@ -72,13 +72,16 @@ SuperClusterFootprintRemoval::~SuperClusterFootprintRemoval()
 TVector3 SuperClusterFootprintRemoval::PropagatePFCandToEcal(int pfcandindex, float position, bool isbarrel){
   // WARNING: this propagates until EE+ or EE- at the given TMath::Abs(position.z()) for isbarrel=0, depending on where the candidate is pointing.
 
-
+  if (!((*pfCandidates)[pfcandindex].pt()>0)) {
+    std::cout << "Warning: called propagation to ECAL for object with negative or zero pt. Returning TVector3(0,0,1e10)." << std::endl;
+    return TVector3(0,0,1e10);
+  }
 
   int i = pfcandindex;
   int type = FindPFCandType((*pfCandidates)[i].pdgId());
 
   if (type>2) {
-    std::cout << "Asking propagation for lepton, not implemented" << std::endl;
+    std::cout << "Asking propagation for lepton, not implemented. Returning TVector3(0,0,1e10)." << std::endl;
     return TVector3(0,0,1e10);
   }
 
@@ -218,6 +221,8 @@ std::vector<int> SuperClusterFootprintRemoval::GetPFCandInFootprint(reco::SuperC
 
   for (unsigned int i=0; i<pfCandidates->size(); i++){
 
+    if (!((*pfCandidates)[i].pt()>0)) continue;
+
     int type = FindPFCandType((*pfCandidates)[i].pdgId());
     if (type>2) continue;
 
@@ -229,6 +234,8 @@ std::vector<int> SuperClusterFootprintRemoval::GetPFCandInFootprint(reco::SuperC
       
       TVector3 xtal_position = infos.xtalposition[j];
       TVector3 ecalpfhit = PropagatePFCandToEcal(i,isbarrel ? xtal_position.Perp() : xtal_position.z(), isbarrel);
+
+      if (ecalpfhit.Perp()==0) continue;
 
       if (isbarrel){
 	float xtalEtaWidth = infos.xtaletawidth[j]*(1.0+global_linkbyrechit_enlargement);
@@ -289,6 +296,15 @@ angular_distances_struct SuperClusterFootprintRemoval::GetPFCandHitDistanceFromS
 
   TVector3 ecalpfhit = PropagatePFCandToEcal(i,isbarrel ? sc_position.Perp() : sc_position.z(),isbarrel);
 
+  if (ecalpfhit.Perp()==0){
+    std::cout << "GetPFCandHitDistanceFromSC: impact position found in the origin of the transverse plane. Returning error state." << std::endl;
+    angular_distances_struct out;
+    out.dR = 999;
+    out.dEta = 999;
+    out.dPhi = 999;
+    return out;
+  }
+
   angular_distances_struct out;
   out.dR = reco::deltaR(sc_position.Eta(),sc_position.Phi(),ecalpfhit.Eta(),ecalpfhit.Phi());
   out.dEta = ecalpfhit.Eta()-sc_position.Eta();
@@ -334,6 +350,8 @@ float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperCl
   if (thistype==-999) {std::cout << "ERROR: Incorrect PF isolation component selected. Returning 999." << std::endl; return 999;}
 
   for (unsigned int i=0; i<pfCandidates->size(); i++){
+
+    if (!((*pfCandidates)[i].pt()>0)) continue;
 
     int type = FindPFCandType((*pfCandidates)[i].pdgId());
     if (type!=thistype) continue;
