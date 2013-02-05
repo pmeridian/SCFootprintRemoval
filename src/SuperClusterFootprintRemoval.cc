@@ -13,7 +13,7 @@
 //
 // Original Author:  Marco Peruzzi,32 4-C16,+41227676829,
 //         Created:  Sat Sep 29 17:58:21 CEST 2012
-// $Id: SuperClusterFootprintRemoval.cc,v 1.7 2013/01/10 17:46:05 peruzzi Exp $
+// $Id: SuperClusterFootprintRemoval.cc,v 1.8 2013/01/15 12:34:28 peruzzi Exp $
 //
 //
 
@@ -128,8 +128,6 @@ sc_xtal_information SuperClusterFootprintRemoval::GetSCXtalInfo(reco::SuperClust
 
   sc_xtal_information out;
 
-  bool isbarrel = (sc->seed()->seed().subdetId()==EcalBarrel);
-
   std::vector<DetId> cristalli;         
   for (reco::CaloCluster_iterator bc=sc->clustersBegin(); bc!=sc->clustersEnd(); ++bc){
     const std::vector< std::pair<DetId, float> > & seedrechits = (*bc)->hitsAndFractions();
@@ -144,13 +142,9 @@ sc_xtal_information SuperClusterFootprintRemoval::GetSCXtalInfo(reco::SuperClust
   for (i=0; i<cristalli.size(); i++){
 
     if (cristalli.at(i).subdetId()!=EcalBarrel && cristalli.at(i).subdetId()!=EcalEndcap) continue;
+    bool isbarrel = (cristalli.at(i).subdetId()==EcalBarrel);
 
     CaloCellGeometry *cellGeometry = NULL;
-    if (cristalli.at(i).subdetId()!=sc->seed()->seed().subdetId()) {
-      std::cout << "Problem with subdetId() in SuperClusterFootprintRemoval" << std::endl;
-      continue;
-    } 
-
     EBDetId ebDetId;
     EEDetId eeDetId;
     if (isbarrel) {
@@ -212,7 +206,7 @@ std::vector<int> SuperClusterFootprintRemoval::GetMatchedPFCandidates(reco::Supe
 
 std::vector<int> SuperClusterFootprintRemoval::GetPFCandInFootprint(reco::SuperClusterRef sc){
 
-  bool isbarrel = (sc->seed()->seed().subdetId()==EcalBarrel);
+  bool isbarrel = (fabs(sc->eta())<1.5);
 
   sc_xtal_information infos = GetSCXtalInfo(sc);
   std::vector<int> matchedpfcand = GetMatchedPFCandidates(sc);
@@ -286,7 +280,7 @@ angular_distances_struct SuperClusterFootprintRemoval::GetPFCandHitDistanceFromS
     return out;
   }
 
-  bool isbarrel = (sc->seed()->seed().subdetId()==EcalBarrel);
+  bool isbarrel = (fabs(sc->eta())<1.5);
 
   TVector3 sc_position = TVector3(sc->x(),sc->y(),sc->z());
 
