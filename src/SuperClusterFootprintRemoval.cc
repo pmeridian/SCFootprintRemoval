@@ -13,7 +13,7 @@
 //
 // Original Author:  Marco Peruzzi,32 4-C16,+41227676829,
 //         Created:  Sat Sep 29 17:58:21 CEST 2012
-// $Id: SuperClusterFootprintRemoval.cc,v 1.8 2013/01/15 12:34:28 peruzzi Exp $
+// $Id: SuperClusterFootprintRemoval.cc,v 1.9 2013/02/05 13:23:25 peruzzi Exp $
 //
 //
 
@@ -26,7 +26,7 @@
 //
 // constructors and destructor
 //
-SuperClusterFootprintRemoval::SuperClusterFootprintRemoval(const edm::Event& iEvent, const edm::ParameterSet& iConfig, const edm::EventSetup& iSetup)
+SuperClusterFootprintRemoval::SuperClusterFootprintRemoval(const edm::Event& iEvent, const edm::EventSetup& iSetup, edm::ParameterSet iConfig)
 {
    //now do what ever initialization is needed
 
@@ -52,6 +52,17 @@ SuperClusterFootprintRemoval::SuperClusterFootprintRemoval(const edm::Event& iEv
   edm::InputTag fVertexTag = iConfig.getUntrackedParameter<edm::InputTag>("tag_Vertices_forSCremoval",edm::InputTag("offlinePrimaryVertices"));
   iEvent.getByLabel(fVertexTag, vertexHandle);
 
+  //Photons
+  iEvent.getByLabel("photons", photonHandle);
+
+  //Jets
+  iEvent.getByLabel("ak5PFJets", jetHandle);
+
+  //Muons
+  iEvent.getByLabel("muons", muonHandle);
+
+  randomgen = new TRandom3(0);
+
 }
 
 
@@ -60,6 +71,8 @@ SuperClusterFootprintRemoval::~SuperClusterFootprintRemoval()
  
    // do anything here that needs to be done at desctruction time
    // (e.g. close files, deallocate resources etc.)
+
+  delete randomgen;
 
 }
 
@@ -204,7 +217,7 @@ std::vector<int> SuperClusterFootprintRemoval::GetMatchedPFCandidates(reco::Supe
 
 }
 
-std::vector<int> SuperClusterFootprintRemoval::GetPFCandInFootprint(reco::SuperClusterRef sc){
+std::vector<int> SuperClusterFootprintRemoval::GetPFCandInFootprint(reco::SuperClusterRef sc, float rotation_phi){
 
   bool isbarrel = (fabs(sc->eta())<1.5);
 
@@ -227,6 +240,11 @@ std::vector<int> SuperClusterFootprintRemoval::GetPFCandInFootprint(reco::SuperC
     for (int j=0; j<infos.nxtals; j++){
       
       TVector3 xtal_position = infos.xtalposition[j];
+      if (rotation_phi!=0) {
+	TRotation r; r.RotateZ(rotation_phi);
+	xtal_position *= r;
+      }
+
       TVector3 ecalpfhit = PropagatePFCandToEcal(i,isbarrel ? xtal_position.Perp() : xtal_position.z(), isbarrel);
 
       if (ecalpfhit.Perp()==0) continue;
@@ -268,7 +286,7 @@ std::vector<int> SuperClusterFootprintRemoval::GetPFCandInFootprint(reco::SuperC
 }
 
 
-angular_distances_struct SuperClusterFootprintRemoval::GetPFCandHitDistanceFromSC(reco::SuperClusterRef sc, int pfindex){
+angular_distances_struct SuperClusterFootprintRemoval::GetPFCandHitDistanceFromSC(reco::SuperClusterRef sc, int pfindex, float rotation_phi){
 
   int i = pfindex;
   int type = FindPFCandType((*pfCandidates)[i].pdgId());
@@ -283,6 +301,10 @@ angular_distances_struct SuperClusterFootprintRemoval::GetPFCandHitDistanceFromS
   bool isbarrel = (fabs(sc->eta())<1.5);
 
   TVector3 sc_position = TVector3(sc->x(),sc->y(),sc->z());
+  if (rotation_phi!=0) {
+    TRotation r; r.RotateZ(rotation_phi);
+    sc_position *= r;
+  }
 
   TVector3 pfvertex((*pfCandidates)[i].vx(),(*pfCandidates)[i].vy(),(*pfCandidates)[i].vz());
   TVector3 pfmomentum((*pfCandidates)[i].px(),(*pfCandidates)[i].py(),(*pfCandidates)[i].pz());
@@ -321,7 +343,7 @@ int SuperClusterFootprintRemoval::FindPFCandType(int id){
   return type;
 }
 
-float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso){
+float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso, float rotation_phi){
 
   if (component!="charged") {
     if (vertexforchargediso!=-999) std::cout << "WARNING: Why are you specifying a vertex for neutral or photon isolation? This will be ignored." << std::endl;
@@ -334,7 +356,7 @@ float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperCl
     }
 
   float result = 0;
-  std::vector<int> removed = GetPFCandInFootprint(sc);
+  std::vector<int> removed = GetPFCandInFootprint(sc,rotation_phi);
 
   int thistype=-999;
   if (component=="neutral") thistype=0;
@@ -350,12 +372,12 @@ float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperCl
     int type = FindPFCandType((*pfCandidates)[i].pdgId());
     if (type!=thistype) continue;
 
+    angular_distances_struct distance = GetPFCandHitDistanceFromSC(sc,i,rotation_phi);
+    if (distance.dR>global_isolation_cone_size) continue;
+
     bool toremove = false;
     for (unsigned int j=0; j<removed.size(); j++) if ((int)i==removed.at(j)) toremove = true;
     if (toremove) continue;
-
-    angular_distances_struct distance = GetPFCandHitDistanceFromSC(sc,i);
-    if (distance.dR>global_isolation_cone_size) continue;
 
     if (type==1 && vertexforchargediso>-1){
       TVector3 pfvertex((*pfCandidates)[i].vx(),(*pfCandidates)[i].vy(),(*pfCandidates)[i].vz());
@@ -374,6 +396,69 @@ float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperCl
   }
 
   return result;
+
+}
+
+bool SuperClusterFootprintRemoval::FindCloseJetsAndPhotons(reco::SuperClusterRef sc, float rotation_phi){
+
+  TVector3 photon_position = TVector3(sc->x(),sc->y(),sc->z());
+  if (rotation_phi!=0) {
+    TRotation r; r.RotateZ(rotation_phi);
+    photon_position *= r;
+  }
+  double eta = photon_position.Eta();
+  double phi = photon_position.Phi();
+  
+  const float mindR = 0.8;
+  bool found=false;
+
+  for (reco::PFJetCollection::const_iterator jet=jetHandle->begin(); jet!=jetHandle->end(); jet++){
+    if (jet->pt()<20) continue;
+    float dR = reco::deltaR(eta,phi,jet->eta(),jet->phi());
+    if (dR<mindR) found=true;
+  }
+
+  for (reco::PhotonCollection::const_iterator pho=photonHandle->begin(); pho!=photonHandle->end(); pho++){
+    if (pho->pt()<10) continue;
+    float dR = reco::deltaR(eta,phi,pho->eta(),pho->phi());
+    if (dR<mindR) found=true;
+  }
+
+  for (reco::MuonCollection::const_iterator muon=muonHandle->begin(); muon!=muonHandle->end(); muon++){
+    float mueta = muon->eta();
+    float muphi = muon->phi();
+    if (reco::deltaR(mueta,muphi,eta,phi)<0.4) found=true;
+  }
+
+  return found;
+
+}
+
+float SuperClusterFootprintRemoval::RandomConeIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso){
+
+  const double pi = TMath::Pi();
+
+  double rotation_phi = pi/2;
+
+  bool isok = !(FindCloseJetsAndPhotons(sc,rotation_phi));
+  if (!isok) {
+    rotation_phi = -pi/2;
+    isok=!(FindCloseJetsAndPhotons(sc,rotation_phi));
+  }
+
+  int count=0;
+  while (!isok && count<20) {
+    rotation_phi = randomgen->Uniform(0.8,2*pi-0.8);
+    isok=!(FindCloseJetsAndPhotons(sc,rotation_phi));
+    count++;
+  }
+
+  if (count==20){
+    std::cout << "It was not possible to find a suitable direction for the random cone in this event. This is not a problem."  << std::endl;
+    return -999;
+  };
+
+  return PFIsolation(component,sc,vertexforchargediso,rotation_phi);
 
 }
 

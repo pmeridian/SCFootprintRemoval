@@ -13,7 +13,7 @@
 //
 // Original Author:  Marco Peruzzi,32 4-C16,+41227676829,
 //         Created:  Sat Sep 29 17:58:21 CEST 2012
-// $Id: SuperClusterFootprintRemoval.h,v 1.3 2012/12/12 09:39:39 peruzzi Exp $
+// $Id: SuperClusterFootprintRemoval.h,v 1.4 2012/12/12 15:00:30 peruzzi Exp $
 //
 //
 
@@ -54,6 +54,11 @@
 #include "DataFormats/GsfTrackReco/interface/GsfTrack.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
 #include "DataFormats/VertexReco/interface/VertexFwd.h"
+#include "DataFormats/JetReco/interface/PFJetCollection.h"
+#include "DataFormats/EgammaCandidates/interface/Photon.h"
+#include "DataFormats/EgammaCandidates/interface/PhotonFwd.h"
+#include "DataFormats/PatCandidates/interface/Muon.h"
+#include "TRandom3.h"
 #include "TGeoTube.h"
 #include "TGeoPara.h"
 #include "TVector3.h"
@@ -99,32 +104,39 @@ public:
 //    tag_Vertices_forSCremoval ("offlinePrimaryVertices") : collection of vertices to use
 //    rechit_link_enlargement_forSCremoval (0.25) : enlargement of linear dimension of xtals for rechit matching
 
-  SuperClusterFootprintRemoval(const edm::Event& iEvent, const edm::ParameterSet& iConfig, const edm::EventSetup& iSetup);
+  SuperClusterFootprintRemoval(const edm::Event& iEvent, const edm::EventSetup& iSetup, edm::ParameterSet iConfig = edm::ParameterSet());
   ~SuperClusterFootprintRemoval();
 
   // Calculate the PF isolation around the object consisting of the SuperCluster sc. Component can be "neutral","charged" or "photon".
   // The vertexforchargediso parameter should be passed for charged isolation ONLY, and tells with respect to which vertex (within the vertices collection) we should cut on dxy (0.1 cm) and dz (0.2 cm) of the track associated to charged PF candidate. Ideally, this should be the vertex from which the object consisting of the SuperCluster sc comes from. To turn off this selection, allowing charged PF candidates from all vertices to enter the isolation sum, pass vertexforchargediso=-1.
-  float PFIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso=-999);
+  float PFIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso=-999, float rotation_phi=0);
+  float RandomConeIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso=-999);
 
   // Get the vector of the indices of those PF candidates (neutrals,charged and photons, in the pfCandidates collection) that are inside the SC footprint or are duplicata of the RECO object with SuperCluster sc
-  std::vector<int> GetPFCandInFootprint(reco::SuperClusterRef sc);
+  std::vector<int> GetPFCandInFootprint(reco::SuperClusterRef sc, float rotation_phi=0);
 
   // Get the angular distance between the pf candidate pfCandidates[pfindex] and the SuperCluster sc
-  angular_distances_struct GetPFCandHitDistanceFromSC(reco::SuperClusterRef sc, int pfindex);
+  angular_distances_struct GetPFCandHitDistanceFromSC(reco::SuperClusterRef sc, int pfindex, float rotation_phi=0);
 
 private:
 
   TVector3 PropagatePFCandToEcal(int pfcandindex, float position, bool isbarrel);
   sc_xtal_information GetSCXtalInfo(reco::SuperClusterRef sc);
   std::vector<int> GetMatchedPFCandidates(reco::SuperClusterRef sc);
+  bool FindCloseJetsAndPhotons(reco::SuperClusterRef sc, float rotation_phi);
+
 
   CaloSubdetectorGeometry *barrelGeometry;
   CaloSubdetectorGeometry *endcapGeometry;
   TGeoPara eegeom;
   MagneticField *magField;
+  TRandom3 *randomgen;
 
   edm::Handle<reco::PFCandidateCollection> pfCandidates;  
   edm::Handle<reco::VertexCollection> vertexHandle;
+  edm::Handle<reco::PhotonCollection> photonHandle;
+  edm::Handle<reco::PFJetCollection> jetHandle;
+  edm::Handle<reco::MuonCollection> muonHandle;
 
   double global_linkbyrechit_enlargement;
   double global_isolation_cone_size;
