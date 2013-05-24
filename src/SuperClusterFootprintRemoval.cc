@@ -13,7 +13,7 @@
 //
 // Original Author:  Marco Peruzzi,32 4-C16,+41227676829,
 //         Created:  Sat Sep 29 17:58:21 CEST 2012
-// $Id: SuperClusterFootprintRemoval.cc,v 1.9 2013/02/05 13:23:25 peruzzi Exp $
+// $Id: SuperClusterFootprintRemoval.cc,v 1.10 2013/05/15 12:57:16 peruzzi Exp $
 //
 //
 
@@ -454,7 +454,7 @@ float SuperClusterFootprintRemoval::RandomConeIsolation(TString component, reco:
   }
 
   if (count==20){
-    std::cout << "It was not possible to find a suitable direction for the random cone in this event. This is not a problem."  << std::endl;
+    //    std::cout << "It was not possible to find a suitable direction for the random cone in this event. This is not a problem."  << std::endl;
     return -999;
   };
 
