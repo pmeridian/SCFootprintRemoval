@@ -90,6 +90,7 @@ typedef struct {
 
 typedef struct {
   float chargediso;
+  float chargediso_primvtx;
   float neutraliso;
   float photoniso;
   float randomcone_eta;

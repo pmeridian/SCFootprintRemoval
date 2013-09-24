@@ -429,6 +429,7 @@ PFIsolation_RandomCone_struct SuperClusterFootprintRemoval::RandomConeIsolation(
 
   PFIsolation_RandomCone_struct out;
   out.chargediso=999;
+  out.chargediso_primvtx=999;
   out.neutraliso=999;
   out.photoniso=999;
   out.randomcone_eta=999;
@@ -459,6 +460,7 @@ PFIsolation_RandomCone_struct SuperClusterFootprintRemoval::RandomConeIsolation(
   };
 
   out.chargediso=PFIsolation("charged",sc,vertexforchargediso,rotation_phi);
+  out.chargediso_primvtx=PFIsolation("charged",sc,0,rotation_phi);
   out.neutraliso=PFIsolation("neutral",sc,-999,rotation_phi);
   out.photoniso=PFIsolation("photon",sc,-999,rotation_phi);
   out.randomcone_eta=TVector3(sc->x(),sc->y(),sc->z()).Eta();
