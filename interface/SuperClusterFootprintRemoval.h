@@ -88,6 +88,14 @@ typedef struct {
   float dPhi;
 } angular_distances_struct;
 
+typedef struct {
+  float chargediso;
+  float neutraliso;
+  float photoniso;
+  float randomcone_eta;
+  float randomcone_phi;
+  bool  randomcone_isok;
+} PFIsolation_RandomCone_struct;
 
 //
 // class declaration
@@ -110,7 +118,7 @@ public:
   // Calculate the PF isolation around the object consisting of the SuperCluster sc. Component can be "neutral","charged" or "photon".
   // The vertexforchargediso parameter should be passed for charged isolation ONLY, and tells with respect to which vertex (within the vertices collection) we should cut on dxy (0.1 cm) and dz (0.2 cm) of the track associated to charged PF candidate. Ideally, this should be the vertex from which the object consisting of the SuperCluster sc comes from. To turn off this selection, allowing charged PF candidates from all vertices to enter the isolation sum, pass vertexforchargediso=-1.
   float PFIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso=-999, float rotation_phi=0);
-  float RandomConeIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso=-999);
+  PFIsolation_RandomCone_struct RandomConeIsolation(reco::SuperClusterRef sc, int vertexforchargediso=-999);
 
   // Get the vector of the indices of those PF candidates (neutrals,charged and photons, in the pfCandidates collection) that are inside the SC footprint or are duplicata of the RECO object with SuperCluster sc
   std::vector<int> GetPFCandInFootprint(reco::SuperClusterRef sc, float rotation_phi=0);

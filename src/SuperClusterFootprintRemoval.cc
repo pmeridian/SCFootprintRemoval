@@ -58,9 +58,6 @@ SuperClusterFootprintRemoval::SuperClusterFootprintRemoval(const edm::Event& iEv
   //Jets
   iEvent.getByLabel("ak5PFJets", jetHandle);
 
-  //Muons
-  iEvent.getByLabel("muons", muonHandle);
-
   randomgen = new TRandom3(0);
 
 }
@@ -424,17 +421,19 @@ bool SuperClusterFootprintRemoval::FindCloseJetsAndPhotons(reco::SuperClusterRef
     if (dR<mindR) found=true;
   }
 
-  for (reco::MuonCollection::const_iterator muon=muonHandle->begin(); muon!=muonHandle->end(); muon++){
-    float mueta = muon->eta();
-    float muphi = muon->phi();
-    if (reco::deltaR(mueta,muphi,eta,phi)<0.4) found=true;
-  }
-
   return found;
 
 }
 
-float SuperClusterFootprintRemoval::RandomConeIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso){
+PFIsolation_RandomCone_struct SuperClusterFootprintRemoval::RandomConeIsolation(reco::SuperClusterRef sc, int vertexforchargediso){
+
+  PFIsolation_RandomCone_struct out;
+  out.chargediso=999;
+  out.neutraliso=999;
+  out.photoniso=999;
+  out.randomcone_eta=999;
+  out.randomcone_phi=999;
+  out.randomcone_isok=true;
 
   const double pi = TMath::Pi();
 
@@ -455,10 +454,21 @@ float SuperClusterFootprintRemoval::RandomConeIsolation(TString component, reco:
 
   if (count==20){
     //    std::cout << "It was not possible to find a suitable direction for the random cone in this event. This is not a problem."  << std::endl;
-    return -999;
+    out.randomcone_isok=false;
+    return out;
   };
 
-  return PFIsolation(component,sc,vertexforchargediso,rotation_phi);
+  out.chargediso=PFIsolation("charged",sc,vertexforchargediso,rotation_phi);
+  out.neutraliso=PFIsolation("neutral",sc,-999,rotation_phi);
+  out.photoniso=PFIsolation("photon",sc,-999,rotation_phi);
+  out.randomcone_eta=TVector3(sc->x(),sc->y(),sc->z()).Eta();
+  
+  float newphi = TVector3(sc->x(),sc->y(),sc->z()).Phi()+rotation_phi;
+  while (newphi>pi) newphi-=2*pi;
+  while (newphi<-pi) newphi+=2*pi;
+  out.randomcone_phi=newphi;
+
+  return out;  
 
 }
 
