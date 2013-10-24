@@ -110,16 +110,15 @@ public:
 //
 //    isolation_cone_size_forSCremoval (0.4) : isolation cone used for PF Iso calculation
 //    tag_pfCandidates_forSCremoval ("particleFlow") : collection of PF candidates to use
-//    tag_Vertices_forSCremoval ("offlinePrimaryVertices") : collection of vertices to use
 //    rechit_link_enlargement_forSCremoval (0.25) : enlargement of linear dimension of xtals for rechit matching
 
   SuperClusterFootprintRemoval(const edm::Event& iEvent, const edm::EventSetup& iSetup, edm::ParameterSet iConfig = edm::ParameterSet());
   ~SuperClusterFootprintRemoval();
 
   // Calculate the PF isolation around the object consisting of the SuperCluster sc. Component can be "neutral","charged" or "photon".
-  // The vertexforchargediso parameter should be passed for charged isolation ONLY, and tells with respect to which vertex (within the vertices collection) we should cut on dxy (0.1 cm) and dz (0.2 cm) of the track associated to charged PF candidate. Ideally, this should be the vertex from which the object consisting of the SuperCluster sc comes from. To turn off this selection, allowing charged PF candidates from all vertices to enter the isolation sum, pass vertexforchargediso=-1.
-  float PFIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso=-999, float rotation_phi=0);
-  PFIsolation_RandomCone_struct RandomConeIsolation(reco::SuperClusterRef sc, int vertexforchargediso=-999);
+  // The vertexforchargediso Ptr should be passed to tell with respect to which vertex we should cut on dxy (0.1 cm) and dz (0.2 cm) of the track associated to charged PF candidate (no cut applied if the Ptr is null). Ideally, this should be the vertex from which the object consisting of the SuperCluster sc comes from.
+  float PFIsolation(TString component, reco::SuperClusterRef sc, edm::Ptr<reco::Vertex> vertexforchargediso = edm::Ptr<reco::Vertex>(), float rotation_phi=0);
+  PFIsolation_RandomCone_struct RandomConeIsolation(reco::SuperClusterRef sc, edm::Ptr<reco::Vertex> vertexforchargediso = edm::Ptr<reco::Vertex>());
 
   // Get the vector of the indices of those PF candidates (neutrals,charged and photons, in the pfCandidates collection) that are inside the SC footprint or are duplicata of the RECO object with SuperCluster sc
   std::vector<int> GetPFCandInFootprint(reco::SuperClusterRef sc, float rotation_phi=0);
@@ -142,7 +141,6 @@ private:
   TRandom3 *randomgen;
 
   edm::Handle<reco::PFCandidateCollection> pfCandidates;  
-  edm::Handle<reco::VertexCollection> vertexHandle;
   edm::Handle<reco::PhotonCollection> photonHandle;
   edm::Handle<reco::PFJetCollection> jetHandle;
   edm::Handle<reco::MuonCollection> muonHandle;

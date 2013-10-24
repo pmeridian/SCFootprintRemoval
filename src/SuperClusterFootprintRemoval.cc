@@ -48,10 +48,6 @@ SuperClusterFootprintRemoval::SuperClusterFootprintRemoval(const edm::Event& iEv
   edm::InputTag pfCandidateTag = iConfig.getUntrackedParameter<edm::InputTag>("tag_pfCandidates_forSCremoval",edm::InputTag("particleFlow"));
   iEvent.getByLabel(pfCandidateTag, pfCandidates);
 
-  //Vertices
-  edm::InputTag fVertexTag = iConfig.getUntrackedParameter<edm::InputTag>("tag_Vertices_forSCremoval",edm::InputTag("offlinePrimaryVertices"));
-  iEvent.getByLabel(fVertexTag, vertexHandle);
-
   //Photons
   iEvent.getByLabel("photons", photonHandle);
 
@@ -340,18 +336,12 @@ int SuperClusterFootprintRemoval::FindPFCandType(int id){
   return type;
 }
 
-float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso, float rotation_phi){
+float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperClusterRef sc, edm::Ptr<reco::Vertex> vertexforchargediso, float rotation_phi){
 
   if (component!="charged") {
-    if (vertexforchargediso!=-999) std::cout << "WARNING: Why are you specifying a vertex for neutral or photon isolation? This will be ignored." << std::endl;
-    vertexforchargediso=-1;
+    if (vertexforchargediso.isNonnull()) std::cout << "WARNING: Why are you specifying a vertex for neutral or photon isolation? This will be ignored." << std::endl;
   }
-
-  if (component=="charged") {
-      if (vertexforchargediso==-999) {std::cout << "WARNING: You did not specify a vertex for the charged component of PF isolation. Deactivating vertex cuts (vertexforchargediso=-1) by default." << std::endl; vertexforchargediso=-1;}
-      if (vertexforchargediso > (int)(vertexHandle->size())-1 || vertexforchargediso<-1) {std::cout << "ERROR: Invalid vertexforchargediso specified. Returning 999." << std::endl; return 999;}
-    }
-
+  
   float result = 0;
   std::vector<int> removed = GetPFCandInFootprint(sc,rotation_phi);
 
@@ -376,10 +366,10 @@ float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperCl
     for (unsigned int j=0; j<removed.size(); j++) if ((int)i==removed.at(j)) toremove = true;
     if (toremove) continue;
 
-    if (type==1 && vertexforchargediso>-1){
+    if (type==1 && vertexforchargediso.isNonnull()){
       TVector3 pfvertex((*pfCandidates)[i].vx(),(*pfCandidates)[i].vy(),(*pfCandidates)[i].vz());
       TVector3 vtxmom((*pfCandidates)[i].trackRef()->px(),(*pfCandidates)[i].trackRef()->py(),(*pfCandidates)[i].trackRef()->pz());
-      TVector3 phovtx((*vertexHandle)[vertexforchargediso].x(),(*vertexHandle)[vertexforchargediso].y(),(*vertexHandle)[vertexforchargediso].z());
+      TVector3 phovtx(vertexforchargediso.get()->x(),vertexforchargediso.get()->y(),vertexforchargediso.get()->z());
       float dxy = ( -(pfvertex.x()-phovtx.x())*vtxmom.y() +(pfvertex.y()-phovtx.y())*vtxmom.x() ) / vtxmom.Perp();
       float dz = (pfvertex.z()-phovtx.z()) - ( (pfvertex.x()-phovtx.x())*vtxmom.x() + (pfvertex.y()-phovtx.y())*vtxmom.y() ) / vtxmom.Perp() * vtxmom.z() / vtxmom.Perp();
       dxy=fabs(dxy);
@@ -425,7 +415,7 @@ bool SuperClusterFootprintRemoval::FindCloseJetsAndPhotons(reco::SuperClusterRef
 
 }
 
-PFIsolation_RandomCone_struct SuperClusterFootprintRemoval::RandomConeIsolation(reco::SuperClusterRef sc, int vertexforchargediso){
+PFIsolation_RandomCone_struct SuperClusterFootprintRemoval::RandomConeIsolation(reco::SuperClusterRef sc, edm::Ptr<reco::Vertex> vertexforchargediso){
 
   PFIsolation_RandomCone_struct out;
   out.chargediso=999;
@@ -459,10 +449,10 @@ PFIsolation_RandomCone_struct SuperClusterFootprintRemoval::RandomConeIsolation(
     return out;
   };
 
-  out.chargediso=PFIsolation("charged",sc,vertexforchargediso,rotation_phi);
-  out.chargediso_primvtx=PFIsolation("charged",sc,0,rotation_phi);
-  out.neutraliso=PFIsolation("neutral",sc,-999,rotation_phi);
-  out.photoniso=PFIsolation("photon",sc,-999,rotation_phi);
+  out.chargediso=PFIsolation("charged",sc,edm::Ptr<reco::Vertex>(),rotation_phi);
+  out.chargediso_primvtx=PFIsolation("charged",sc,vertexforchargediso,rotation_phi);
+  out.neutraliso=PFIsolation("neutral",sc,edm::Ptr<reco::Vertex>(),rotation_phi);
+  out.photoniso=PFIsolation("photon",sc,edm::Ptr<reco::Vertex>(),rotation_phi);
   out.randomcone_eta=TVector3(sc->x(),sc->y(),sc->z()).Eta();
   
   float newphi = TVector3(sc->x(),sc->y(),sc->z()).Phi()+rotation_phi;
