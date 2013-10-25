@@ -110,6 +110,7 @@ public:
 //
 //    isolation_cone_size_forSCremoval (0.4) : isolation cone used for PF Iso calculation
 //    tag_pfCandidates_forSCremoval ("particleFlow") : collection of PF candidates to use
+//    tag_jets ("ak5PFJets") : collection of PF jets to use for vetoing around random cone direction
 //    rechit_link_enlargement_forSCremoval (0.25) : enlargement of linear dimension of xtals for rechit matching
 
   SuperClusterFootprintRemoval(const edm::Event& iEvent, const edm::EventSetup& iSetup, edm::ParameterSet iConfig = edm::ParameterSet());

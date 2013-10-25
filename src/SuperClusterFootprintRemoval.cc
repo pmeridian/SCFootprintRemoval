@@ -52,7 +52,8 @@ SuperClusterFootprintRemoval::SuperClusterFootprintRemoval(const edm::Event& iEv
   iEvent.getByLabel("photons", photonHandle);
 
   //Jets
-  iEvent.getByLabel("ak5PFJets", jetHandle);
+  edm::InputTag jetTag = iConfig.getUntrackedParameter<edm::InputTag>("tag_jets",edm::InputTag("ak5PFJets"));
+  iEvent.getByLabel(jetTag, jetHandle);
 
   randomgen = new TRandom3(0);
 
