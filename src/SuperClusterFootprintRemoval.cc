@@ -353,9 +353,16 @@ float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperCl
 
   if (thistype==-999) {std::cout << "ERROR: Incorrect PF isolation component selected. Returning 999." << std::endl; return 999;}
 
+  bool isbarrel = (fabs(sc->eta())<1.5);
+
   for (unsigned int i=0; i<pfCandidates->size(); i++){
 
     if (!((*pfCandidates)[i].pt()>0)) continue;
+
+    float pfcandabseta = fabs((*pfCandidates)[i].eta());
+    if (pfcandabseta>2.5) continue;
+    if (isbarrel && pfcandabseta>1.4442) continue;
+    if (!isbarrel && pfcandabseta<1.566) continue;
 
     int type = FindPFCandType((*pfCandidates)[i].pdgId());
     if (type!=thistype) continue;
