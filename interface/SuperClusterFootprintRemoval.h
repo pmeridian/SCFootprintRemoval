@@ -93,10 +93,14 @@ typedef struct {
   float chargediso_primvtx;
   float neutraliso;
   float photoniso;
-  float randomcone_eta;
-  float randomcone_phi;
-  bool  randomcone_isok;
-} PFIsolation_RandomCone_struct;
+  float chargediso_rcone;
+  float chargediso_primvtx_rcone;
+  float neutraliso_rcone;
+  float photoniso_rcone;
+  float eta_rcone;
+  float phi_rcone;
+  bool  rcone_isOK;
+} PFIsolation_struct;
 
 //
 // class declaration
@@ -118,28 +122,27 @@ public:
 
   // Calculate the PF isolation around the object consisting of the SuperCluster sc. Component can be "neutral","charged" or "photon".
   // The vertexforchargediso Ptr should be passed to tell with respect to which vertex we should cut on dxy (0.1 cm) and dz (0.2 cm) of the track associated to charged PF candidate (no cut applied if the Ptr is null). Ideally, this should be the vertex from which the object consisting of the SuperCluster sc comes from.
-  float PFIsolation(TString component, reco::SuperClusterRef sc, edm::Ptr<reco::Vertex> vertexforchargediso = edm::Ptr<reco::Vertex>(), float rotation_phi=0);
-  PFIsolation_RandomCone_struct RandomConeIsolation(reco::SuperClusterRef sc, edm::Ptr<reco::Vertex> vertexforchargediso = edm::Ptr<reco::Vertex>());
-
-  // Get the vector of the indices of those PF candidates (neutrals,charged and photons, in the pfCandidates collection) that are inside the SC footprint or are duplicata of the RECO object with SuperCluster sc
-  std::vector<int> GetPFCandInFootprint(reco::SuperClusterRef sc, float rotation_phi=0);
-
-  // Get the angular distance between the pf candidate pfCandidates[pfindex] and the SuperCluster sc
-  angular_distances_struct GetPFCandHitDistanceFromSC(reco::SuperClusterRef sc, int pfindex, float rotation_phi=0);
+  PFIsolation_struct PFIsolation(reco::SuperClusterRef sc_, edm::Ptr<reco::Vertex> vertexforchargediso = edm::Ptr<reco::Vertex>());
 
 private:
 
+  PFIsolation_struct PFIsolation_worker(reco::SuperClusterRef sc_, edm::Ptr<reco::Vertex> vertexforchargediso = edm::Ptr<reco::Vertex>(), float rotation_phi=0, bool is_recursive_rcone=false);
   TVector3 PropagatePFCandToEcal(int pfcandindex, float position, bool isbarrel);
   sc_xtal_information GetSCXtalInfo(reco::SuperClusterRef sc);
-  std::vector<int> GetMatchedPFCandidates(reco::SuperClusterRef sc);
-  bool FindCloseJetsAndPhotons(reco::SuperClusterRef sc, float rotation_phi);
-
+  bool CheckMatchedPFCandidate(int pfcandindex);
+  bool FindCloseJetsAndPhotons(float rotation_phi);
+  void RandomConeIsolation(edm::Ptr<reco::Vertex> vertexforchargediso = edm::Ptr<reco::Vertex>(), PFIsolation_struct *output=NULL);
+  bool CheckPFCandInFootprint(int pfcandindex, float rotation_phi);
+  angular_distances_struct GetPFCandHitDistanceFromSC(int pfcandindex, float rotation_phi);
 
   CaloSubdetectorGeometry *barrelGeometry;
   CaloSubdetectorGeometry *endcapGeometry;
   TGeoPara eegeom;
   MagneticField *magField;
   TRandom3 *randomgen;
+
+  reco::SuperClusterRef sc;
+  sc_xtal_information infos;
 
   edm::Handle<reco::PFCandidateCollection> pfCandidates;  
   edm::Handle<reco::PhotonCollection> photonHandle;
