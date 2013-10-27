@@ -332,7 +332,18 @@ PFIsolation_struct SuperClusterFootprintRemoval::PFIsolation_worker(reco::SuperC
   }
 
   PFIsolation_struct out;
-
+  out.chargediso=0;
+  out.chargediso_primvtx=0;
+  out.neutraliso=0;
+  out.photoniso=0;
+  out.chargediso_rcone=999;
+  out.chargediso_primvtx_rcone=999;
+  out.neutraliso_rcone=999;
+  out.photoniso_rcone=999;
+  out.eta_rcone=999;
+  out.phi_rcone=999;
+  out.rcone_isOK=false;
+  
   bool isbarrel = (fabs(sc->eta())<1.5);
 
   for (unsigned int i=0; i<pfCandidates->size(); i++){
@@ -406,12 +417,6 @@ bool SuperClusterFootprintRemoval::FindCloseJetsAndPhotons(float rotation_phi){
 
 void SuperClusterFootprintRemoval::RandomConeIsolation(edm::Ptr<reco::Vertex> vertexforchargediso, PFIsolation_struct *output){
 
-  output->chargediso_rcone = 999;
-  output->chargediso_primvtx_rcone = -999;
-  output->neutraliso_rcone = -999;
-  output->photoniso_rcone = -999;
-  output->rcone_isOK = false;
-
   const double pi = TMath::Pi();
 
   double rotation_phi = pi/2;
@@ -431,12 +436,10 @@ void SuperClusterFootprintRemoval::RandomConeIsolation(edm::Ptr<reco::Vertex> ve
 
   if (count==20){
     //    std::cout << "It was not possible to find a suitable direction for the random cone in this event. This is not a problem."  << std::endl;
-    output->rcone_isOK=false;
     return;
   };
 
-  PFIsolation_struct temp;
-  temp = PFIsolation_worker(sc,vertexforchargediso,rotation_phi,true);
+  PFIsolation_struct temp = PFIsolation_worker(sc,vertexforchargediso,rotation_phi,true);
   output->chargediso_rcone = temp.chargediso;
   output->chargediso_primvtx_rcone = temp.chargediso_primvtx;
   output->neutraliso_rcone = temp.neutraliso;
