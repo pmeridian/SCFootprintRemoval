@@ -26,13 +26,13 @@
 //
 // constructors and destructor
 //
-SuperClusterFootprintRemoval::SuperClusterFootprintRemoval(const edm::Event& iEvent, const edm::EventSetup& iSetup, edm::ParameterSet iConfig)
+SuperClusterFootprintRemoval::SuperClusterFootprintRemoval(const edm::Event& iEvent, const edm::EventSetup& iSetup, double conesize, edm::ParameterSet iConfig)
 {
    //now do what ever initialization is needed
 
   eegeom = TGeoPara(1,1,1,0,0,0);
 
-  global_isolation_cone_size = iConfig.getUntrackedParameter<double>("isolation_cone_size_forSCremoval",0.4);
+  global_isolation_cone_size = conesize;
   global_linkbyrechit_enlargement = iConfig.getUntrackedParameter<double>("rechit_link_enlargement_forSCremoval",0.25);
 
   edm::ESHandle<CaloGeometry> geometry ;
@@ -340,34 +340,30 @@ int SuperClusterFootprintRemoval::FindPFCandType(int id){
   return type;
 }
 
-float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperClusterRef sc, int vertexforchargediso, float rotation_phi){
-
-  if (component!="charged") {
-    if (vertexforchargediso!=-999) std::cout << "WARNING: Why are you specifying a vertex for neutral or photon isolation? This will be ignored." << std::endl;
-    vertexforchargediso=-1;
-  }
-
-  if (component=="charged") {
-      if (vertexforchargediso==-999) {std::cout << "WARNING: You did not specify a vertex for the charged component of PF isolation. Deactivating vertex cuts (vertexforchargediso=-1) by default." << std::endl; vertexforchargediso=-1;}
-      if (vertexforchargediso > (int)(vertexHandle->size())-1 || vertexforchargediso<-1) {std::cout << "ERROR: Invalid vertexforchargediso specified. Returning 999." << std::endl; return 999;}
-    }
-
-  float result = 0;
+PFIsolation_struct SuperClusterFootprintRemoval::PFIsolation(reco::SuperClusterRef sc, int vertexforchargediso, float rotation_phi)
+{
+  PFIsolation_struct out;
+  out.chargediso=999;
+  out.chargediso_primvtx=999;
+  out.neutraliso=999;
+  out.photoniso=999;
+  
+  if (vertexforchargediso==-999) {std::cout << "WARNING: You did not specify a vertex for the charged component of PF isolation. Deactivating vertex cuts (vertexforchargediso=-1) by default." << std::endl; vertexforchargediso=-1;}
+  if (vertexforchargediso > (int)(vertexHandle->size())-1 || vertexforchargediso<-1) {std::cout << "ERROR: Invalid vertexforchargediso specified. Returning 999." << std::endl; return out;}
+  
+  
   std::vector<int> removed = GetPFCandInFootprint(sc,rotation_phi);
-
-  int thistype=-999;
-  if (component=="neutral") thistype=0;
-  if (component=="charged") thistype=1;
-  if (component=="photon")  thistype=2;
-
-  if (thistype==-999) {std::cout << "ERROR: Incorrect PF isolation component selected. Returning 999." << std::endl; return 999;}
+  out.chargediso=0;
+  out.chargediso_primvtx=0;
+  out.neutraliso=0;
+  out.photoniso=0;
 
   for (unsigned int i=0; i<pfCandidates->size(); i++){
 
     if (!((*pfCandidates)[i].pt()>0)) continue;
 
     int type = FindPFCandType((*pfCandidates)[i].pdgId());
-    if (type!=thistype) continue;
+    if (type>2 ) continue;
 
     angular_distances_struct distance = GetPFCandHitDistanceFromSC(sc,i,rotation_phi);
     if (distance.dR>global_isolation_cone_size) continue;
@@ -376,24 +372,48 @@ float SuperClusterFootprintRemoval::PFIsolation(TString component, reco::SuperCl
     for (unsigned int j=0; j<removed.size(); j++) if ((int)i==removed.at(j)) toremove = true;
     if (toremove) continue;
 
-    if (type==1 && vertexforchargediso>-1){
-      TVector3 pfvertex((*pfCandidates)[i].vx(),(*pfCandidates)[i].vy(),(*pfCandidates)[i].vz());
-      TVector3 vtxmom((*pfCandidates)[i].trackRef()->px(),(*pfCandidates)[i].trackRef()->py(),(*pfCandidates)[i].trackRef()->pz());
-      TVector3 phovtx((*vertexHandle)[vertexforchargediso].x(),(*vertexHandle)[vertexforchargediso].y(),(*vertexHandle)[vertexforchargediso].z());
-      float dxy = ( -(pfvertex.x()-phovtx.x())*vtxmom.y() +(pfvertex.y()-phovtx.y())*vtxmom.x() ) / vtxmom.Perp();
-      float dz = (pfvertex.z()-phovtx.z()) - ( (pfvertex.x()-phovtx.x())*vtxmom.x() + (pfvertex.y()-phovtx.y())*vtxmom.y() ) / vtxmom.Perp() * vtxmom.z() / vtxmom.Perp();
-      dxy=fabs(dxy);
-      dz=fabs(dz);
-      if (dz>0.2) continue;
-      if (dxy>0.1) continue;
+    out.chargediso=0;
+    out.chargediso_primvtx=999;
+    out.neutraliso=0;
+    out.photoniso=0;
+    if (type==1 ){
+	  TVector3 pfvertex((*pfCandidates)[i].vx(),(*pfCandidates)[i].vy(),(*pfCandidates)[i].vz());
+	  TVector3 vtxmom((*pfCandidates)[i].trackRef()->px(),(*pfCandidates)[i].trackRef()->py(),(*pfCandidates)[i].trackRef()->pz());
+	  TVector3 phovtx((*vertexHandle)[0].x(),(*vertexHandle)[0].y(),(*vertexHandle)[0].z());
+	  float dxy = ( -(pfvertex.x()-phovtx.x())*vtxmom.y() +(pfvertex.y()-phovtx.y())*vtxmom.x() ) / vtxmom.Perp();
+	  float dz = (pfvertex.z()-phovtx.z()) - ( (pfvertex.x()-phovtx.x())*vtxmom.x() + (pfvertex.y()-phovtx.y())*vtxmom.y() ) / vtxmom.Perp() * vtxmom.z() / vtxmom.Perp();
+	  dxy=fabs(dxy);
+	  dz=fabs(dz);
+	  
+	  if (dz>0.2) continue;
+	  if (dxy>0.1) continue;
+	  out.chargediso_primvtx+=(*pfCandidates)[i].pt();
+
+	  if (vertexforchargediso>-1)
+	    {
+	      
+	      TVector3 phovtx((*vertexHandle)[vertexforchargediso].x(),(*vertexHandle)[vertexforchargediso].y(),(*vertexHandle)[vertexforchargediso].z());
+	      float dxy = ( -(pfvertex.x()-phovtx.x())*vtxmom.y() +(pfvertex.y()-phovtx.y())*vtxmom.x() ) / vtxmom.Perp();
+	      float dz = (pfvertex.z()-phovtx.z()) - ( (pfvertex.x()-phovtx.x())*vtxmom.x() + (pfvertex.y()-phovtx.y())*vtxmom.y() ) / vtxmom.Perp() * vtxmom.z() / vtxmom.Perp();
+	      dxy=fabs(dxy);
+	      dz=fabs(dz);
+	      
+	      if (dz>0.2) continue;
+	      if (dxy>0.1) continue;
+	      out.chargediso+=(*pfCandidates)[i].pt();
+	    }
+    }
+    else if (type==0 ){
+      out.neutraliso=0;
+      out.neutraliso+=(*pfCandidates)[i].pt();
+    }
+    else if (type==2 ){
+      out.photoniso=0;
+      out.photoniso+=(*pfCandidates)[i].pt();
     }
 
-    result+=(*pfCandidates)[i].pt();
-
   }
-
-  return result;
-
+  return out;
 }
 
 bool SuperClusterFootprintRemoval::FindCloseJetsAndPhotons(reco::SuperClusterRef sc, float rotation_phi){
@@ -428,13 +448,13 @@ bool SuperClusterFootprintRemoval::FindCloseJetsAndPhotons(reco::SuperClusterRef
 PFIsolation_RandomCone_struct SuperClusterFootprintRemoval::RandomConeIsolation(reco::SuperClusterRef sc, int vertexforchargediso){
 
   PFIsolation_RandomCone_struct out;
-  out.chargediso=999;
-  out.chargediso_primvtx=999;
-  out.neutraliso=999;
-  out.photoniso=999;
-  out.randomcone_eta=999;
-  out.randomcone_phi=999;
-  out.randomcone_isok=true;
+  out.iso.chargediso=999;
+  out.iso.chargediso_primvtx=999;
+  out.iso.neutraliso=999;
+  out.iso.photoniso=999;
+  out.randomCone.randomcone_eta=999;
+  out.randomCone.randomcone_phi=999;
+  out.randomCone.randomcone_isok=true;
 
   const double pi = TMath::Pi();
 
@@ -455,23 +475,20 @@ PFIsolation_RandomCone_struct SuperClusterFootprintRemoval::RandomConeIsolation(
 
   if (count==20){
     //    std::cout << "It was not possible to find a suitable direction for the random cone in this event. This is not a problem."  << std::endl;
-    out.randomcone_isok=false;
+    out.randomCone.randomcone_isok=false;
     return out;
   };
 
-  out.chargediso=PFIsolation("charged",sc,vertexforchargediso,rotation_phi);
-  out.chargediso_primvtx=PFIsolation("charged",sc,0,rotation_phi);
-  out.neutraliso=PFIsolation("neutral",sc,-999,rotation_phi);
-  out.photoniso=PFIsolation("photon",sc,-999,rotation_phi);
-  out.randomcone_eta=TVector3(sc->x(),sc->y(),sc->z()).Eta();
   
+  out.iso=PFIsolation(sc,vertexforchargediso,rotation_phi);
+
+  out.randomCone.randomcone_eta=TVector3(sc->x(),sc->y(),sc->z()).Eta();
   float newphi = TVector3(sc->x(),sc->y(),sc->z()).Phi()+rotation_phi;
   while (newphi>pi) newphi-=2*pi;
   while (newphi<-pi) newphi+=2*pi;
-  out.randomcone_phi=newphi;
+  out.randomCone.randomcone_phi=newphi;
 
   return out;  
-
 }
 
 #endif
