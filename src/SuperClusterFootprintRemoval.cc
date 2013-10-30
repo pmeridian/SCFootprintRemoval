@@ -242,6 +242,10 @@ bool SuperClusterFootprintRemoval::CheckPFCandInFootprint(int i, float rotation_
 	if (ecalpfhit.z()*xtal_position.z()>0){
 	  TVector3 xtal_corners[4];
 	  for (int k=0; k<4; k++) xtal_corners[k] = infos.xtalcorners[j][k];
+	  if (rotation_phi!=0) {
+            TRotation r; r.RotateZ(rotation_phi);
+            for (int k=0; k<4; k++) xtal_corners[k] *= r;
+          }
 	  float hitx = ecalpfhit.x();
 	  float hity = ecalpfhit.y();
 	  float polx[5];
@@ -282,10 +286,6 @@ angular_distances_struct SuperClusterFootprintRemoval::GetPFCandHitDistanceFromS
     TRotation r; r.RotateZ(rotation_phi);
     sc_position *= r;
   }
-
-  TVector3 pfvertex((*pfCandidates)[pfindex].vx(),(*pfCandidates)[pfindex].vy(),(*pfCandidates)[pfindex].vz());
-  TVector3 pfmomentum((*pfCandidates)[pfindex].px(),(*pfCandidates)[pfindex].py(),(*pfCandidates)[pfindex].pz());
-  pfmomentum = pfmomentum.Unit();
 
   TVector3 ecalpfhit = PropagatePFCandToEcal(pfindex,isbarrel ? sc_position.Perp() : sc_position.z(),isbarrel);
 
