@@ -100,6 +100,7 @@ typedef struct {
   float eta_rcone;
   float phi_rcone;
   bool  rcone_isOK;
+  std::vector<int> pfcandindex_footprint;
 } PFIsolation_struct;
 
 //

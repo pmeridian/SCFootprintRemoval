@@ -378,6 +378,8 @@ PFIsolation_struct SuperClusterFootprintRemoval::PFIsolation_worker(reco::SuperC
       if (dz<0.2 && dxy<0.1) out.chargediso_primvtx+=(*pfCandidates)[i].pt();
     }
 
+    out.pfcandindex_footprint.push_back(i);
+
   }
 
   if (!is_recursive_rcone) RandomConeIsolation(vertexforchargediso,&out);
