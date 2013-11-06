@@ -361,7 +361,10 @@ PFIsolation_struct SuperClusterFootprintRemoval::PFIsolation_worker(reco::SuperC
     angular_distances_struct distance = GetPFCandHitDistanceFromSC(i,rotation_phi);
     if (distance.dR>global_isolation_cone_size) continue;
 
-    if (CheckPFCandInFootprint(i,rotation_phi)) continue;
+    if (CheckPFCandInFootprint(i,rotation_phi)) {
+      out.pfcandindex_footprint.push_back(i); 
+      continue;
+    }
 
     if (type==0) out.neutraliso+=(*pfCandidates)[i].pt();
     if (type==1) out.chargediso+=(*pfCandidates)[i].pt();
@@ -377,8 +380,6 @@ PFIsolation_struct SuperClusterFootprintRemoval::PFIsolation_worker(reco::SuperC
       dz=fabs(dz);
       if (dz<0.2 && dxy<0.1) out.chargediso_primvtx+=(*pfCandidates)[i].pt();
     }
-
-    out.pfcandindex_footprint.push_back(i);
 
   }
 
